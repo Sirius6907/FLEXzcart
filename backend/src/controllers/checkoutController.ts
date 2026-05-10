@@ -105,8 +105,8 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
         [env.POLAR_CHECKOUT_PRODUCT_ID]: [
           {
             amount_type: "fixed",
-            // Polar only supports USD — always send "usd" regardless of local currency
-            price_currency: "usd",
+            // Send the actual product currency to Polar
+            price_currency: currency,
             price_amount: totalCents,
           },
         ],
