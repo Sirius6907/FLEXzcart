@@ -37,9 +37,15 @@ Sentry.init({
   enableLogs: true,
 });
 
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!clerkPubKey) {
+  console.warn("⚠️ VITE_CLERK_PUBLISHABLE_KEY is missing! The app will be stuck on the loading screen.");
+}
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <ClerkProvider>
+    <ClerkProvider publishableKey={clerkPubKey}>
       <SentryUserSync />
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
