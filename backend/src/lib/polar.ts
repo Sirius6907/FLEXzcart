@@ -32,6 +32,7 @@ export async function polarCreateCheckout(env: Env, body: CheckoutCreateBody) {
 
   if (!res.ok) {
     const errText = await res.text();
+    console.error("Polar API error:", { status: res.status, body: errText, requestBody: body });
     throw new Error(`Polar checkout failed: ${res.status} ${errText}`);
   }
 

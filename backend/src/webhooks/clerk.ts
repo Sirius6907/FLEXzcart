@@ -9,9 +9,12 @@ import { eq } from "drizzle-orm";
 export async function clerkWebhookHandler(req: Request, res: Response) {
   const env = getEnv();
 
+  console.log("Clerk webhook received");
+
   try {
     // webhook verification needs a shared secret; without it we cannot trust incoming POSTs.
     if (!env.CLERK_WEBHOOK_SECRET) {
+      console.error("CLERK_WEBHOOK_SECRET is missing in environment variables");
       res.status(503).send("Webhooks secret is not provided");
       return;
     }
@@ -28,6 +31,8 @@ export async function clerkWebhookHandler(req: Request, res: Response) {
     // throws if signature is wrong or body was tampered with; only then we trust evt.
     const evt = await verifyWebhook(request, { signingSecret: env.CLERK_WEBHOOK_SECRET });
 
+    console.log(`Clerk webhook verified: ${evt.type}`);
+
     if (evt.type === "user.created" || evt.type === "user.updated") {
       const u = evt.data;
 
@@ -39,6 +44,8 @@ export async function clerkWebhookHandler(req: Request, res: Response) {
         [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || null;
 
       const role = parseRole(u.public_metadata?.role);
+
+      console.log(`Syncing user: ${u.id} (${email})`);
 
       await db
         .insert(users)
@@ -52,19 +59,24 @@ export async function clerkWebhookHandler(req: Request, res: Response) {
           target: users.clerkUserId,
           set: { email, displayName, role, updatedAt: new Date() },
         });
+
+      console.log(`User synced successfully: ${u.id}`);
     }
 
     if (evt.type === "user.deleted") {
       const id = evt.data.id;
       if (id) {
+        console.log(`Deleting user: ${id}`);
         await db.delete(users).where(eq(users.clerkUserId, id));
+        console.log(`User deleted successfully: ${id}`);
       }
     }
 
     res.json({ ok: true });
   } catch (err) {
     // Bad signature, malformed payload, or DB error — do not leak details to the client.
-    console.error("Clerk webhook error", err);
+    console.error("Clerk webhook error:", err instanceof Error ? err.message : err);
     res.status(400).json({ error: "Invalid webhook" });
   }
 }
+

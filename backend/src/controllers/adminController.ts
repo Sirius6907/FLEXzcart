@@ -1,6 +1,6 @@
 import { getAuth } from "@clerk/express";
 import type { Request, Response, NextFunction } from "express";
-import { getLocalUser } from "../lib/users";
+import { getOrSyncUser } from "../lib/users";
 import { isAdmin } from "../lib/roles";
 import ImageKit from "@imagekit/nodejs";
 import { getEnv } from "../lib/env";
@@ -52,14 +52,15 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    const user = await getLocalUser(userId);
+    const user = await getOrSyncUser(userId);
 
-    if (!isAdmin(user.role)) {
+    if (!user || !isAdmin(user.role)) {
       res.status(403).json({ error: "Admin only" });
       return;
     }
     next();
   } catch (e) {
+
     next(e);
   }
 }

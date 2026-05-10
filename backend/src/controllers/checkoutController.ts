@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { getEnv } from "../lib/env";
 import z from "zod";
 import { getAuth } from "@clerk/express";
-import { getLocalUser } from "../lib/users";
+import { getOrSyncUser } from "../lib/users";
 import { db } from "../db";
 import { CheckoutSessionLine, checkoutSessions, products } from "../db/schema";
 import { and, eq, inArray } from "drizzle-orm";
@@ -42,11 +42,12 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    const localUser = await getLocalUser(userId);
+    const localUser = await getOrSyncUser(userId);
     if (!localUser) {
-      res.status(503).json({ error: "Account not synced yet" });
+      res.status(503).json({ error: "Failed to synchronize user account. Please try again." });
       return;
     }
+
 
     const ids = parsed.data.items.map((i) => i.productId);
 
@@ -64,6 +65,8 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
     const byId = new Map(prodRows.map((p) => [p.id, p]));
     let totalCents = 0;
     const lines: CheckoutSessionLine[] = [];
+    // Use the currency from the first product (all products should share the same currency)
+    const currency = prodRows[0]?.currency ?? "usd";
 
     for (const line of parsed.data.items) {
       const p = byId.get(line.productId)!;
@@ -77,7 +80,7 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
 
     if (totalCents < 10) {
       res.status(400).json({
-        error: "Total below Polar minimum (e.g. USD requires at least 10 cents)",
+        error: "Total below minimum (requires at least 10 minor units)",
       });
       return;
     }
@@ -88,12 +91,13 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
         userId: localUser.id,
         lines,
         totalCents,
-        currency: "usd",
+        currency,
       })
       .returning();
 
-    const successUrl = `${env.FRONTEND_URL}/checkout/return?checkout_id={CHECKOUT_ID}`;
-    const returnUrl = `${env.FRONTEND_URL}/cart`;
+    const frontendBase = env.FRONTEND_URL.replace(/\/+$/, "");
+    const successUrl = `${frontendBase}/checkout/return?checkout_id={CHECKOUT_ID}`;
+    const returnUrl = `${frontendBase}/cart`;
 
     const checkout = await polarCreateCheckout(env, {
       products: [env.POLAR_CHECKOUT_PRODUCT_ID],
@@ -101,6 +105,7 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
         [env.POLAR_CHECKOUT_PRODUCT_ID]: [
           {
             amount_type: "fixed",
+            // Polar only supports USD — always send "usd" regardless of local currency
             price_currency: "usd",
             price_amount: totalCents,
           },
@@ -120,6 +125,7 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
 
     res.json({ checkoutUrl: checkout.url });
   } catch (e) {
+    console.error("Checkout error:", e);
     next(e);
   }
 }
