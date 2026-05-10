@@ -75,7 +75,8 @@ if (fs.existsSync(publicDir)) {
   }));
 
   // Catch-all SPA route for GET requests that are NOT API or Webhooks
-  app.get("*", (req, res, next) => {
+  // Note: Using (.*) for Express 5 compatibility
+  app.get("(.*)", (req, res, next) => {
     // Only handle GET/HEAD
     if (req.method !== "GET" && req.method !== "HEAD") return next();
     // Skip API and Webhooks
