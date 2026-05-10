@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: forest --default;
+}
+
+@layer base {
+  :root,
+  [data-theme="forest"] {
+    --color-base-100: oklch(14% 0.01 85);
+    --color-base-200: oklch(18% 0.015 85);
+    --color-base-300: oklch(24% 0.02 85);
+    --color-base-content: oklch(94% 0.02 90);
+    --color-primary: oklch(78% 0.16 85);
+    --color-primary-content: oklch(16% 0.02 85);
+    --color-secondary: oklch(68% 0.15 72);
+    --color-secondary-content: oklch(14% 0.02 85);
+    --color-accent: oklch(72% 0.18 95);
+    --color-accent-content: oklch(14% 0.02 85);
+    --color-neutral: oklch(19% 0.01 85);
+    --color-neutral-content: oklch(92% 0.02 90);
+    --color-info: oklch(71% 0.11 238);
+    --color-success: oklch(74% 0.14 150);
+    --color-warning: oklch(82% 0.17 84);
+    --color-error: oklch(66% 0.2 28);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at top, rgb(245 183 43 / 12%), transparent 26%),
+      linear-gradient(180deg, rgb(15 15 15) 0%, rgb(23 23 23) 100%);
+  }
+}
